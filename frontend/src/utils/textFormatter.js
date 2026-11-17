@@ -33,11 +33,13 @@ export function formatWeddingLines(text, isHindi = false, linePreference = null)
   const famMatch = s.match(famPattern);
 
   let hasFamily = false;
+  let matchedFam = '';
   let extraLocation = '';
   let namesPart = s;
 
   if (famMatch) {
     hasFamily = true;
+    matchedFam = (famMatch[1] || '').trim();
     namesPart = s.substring(0, famMatch.index).replace(/[,–\-\s]+$/, '').trim();
     const afterFam = s.substring(famMatch.index + famMatch[0].length).trim();
     if (afterFam) {
@@ -206,19 +208,32 @@ export function formatWeddingLines(text, isHindi = false, linePreference = null)
     }
   }
 
+  // Determine family string if present
+  let famStr = '';
+  if (hasFamily) {
+    if (hindiMode) {
+      if (['एवं सपरिवार', 'व सपरिवार'].includes(matchedFam)) {
+        famStr = matchedFam;
+      } else {
+        famStr = 'सपरिवार';
+      }
+    } else {
+      famStr = matchedFam || 'with family';
+    }
+  }
+
   // 1 Name cases
   if (names.length === 1) {
     if (hasFamily && extraLocation) {
       return [
         names[0],
-        hindiMode ? 'एवं सपरिवार' : 'and with family',
+        famStr,
         extraLocation
       ];
     } else if (hasFamily) {
       return [
         names[0],
-        hindiMode ? 'एवं' : 'and',
-        hindiMode ? 'सपरिवार' : 'with family'
+        famStr
       ];
     } else if (extraLocation) {
       return [names[0], extraLocation];
@@ -232,14 +247,14 @@ export function formatWeddingLines(text, isHindi = false, linePreference = null)
     if (hasFamily && extraLocation) {
       return [
         `${names[0]}, ${names[1]}`,
-        hindiMode ? 'एवं सपरिवार' : 'and with family',
+        famStr,
         extraLocation
       ];
     } else if (hasFamily) {
       return [
-        `${names[0]}, ${names[1]}`,
-        hindiMode ? 'एवं' : 'and',
-        hindiMode ? 'सपरिवार' : 'with family'
+        names[0],
+        names[1],
+        famStr
       ];
     } else if (extraLocation) {
       return [names[0], names[1], extraLocation];
@@ -258,7 +273,6 @@ export function formatWeddingLines(text, isHindi = false, linePreference = null)
     const line1 = names.slice(0, mid).join(', ');
     const line2 = names.slice(mid).join(', ');
     if (hasFamily) {
-      const famStr = hindiMode ? 'एवं सपरिवार' : 'and with family';
       const line3 = extraLocation ? `${famStr} (${extraLocation})` : famStr;
       return [line1, line2, line3];
     } else if (extraLocation) {

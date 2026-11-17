@@ -25,7 +25,7 @@ class GenerationBatchSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'project', 'batch_number', 'batch_name', 'target_language', 'total_guests',
             'processed_guests', 'progress_percentage', 'status', 'error_message',
-            'zip_file', 'zip_url', 'worker_pid', 'started_at', 'heartbeat_at',
+            'zip_file', 'zip_url', 'session_id', 'worker_pid', 'started_at', 'heartbeat_at',
             'completed_at', 'created_at', 'cards'
         ]
 
@@ -97,6 +97,7 @@ class BatchCreateSerializer(serializers.Serializer):
     guest_names = serializers.CharField(style={'base_template': 'textarea.html'})
     target_language = serializers.ChoiceField(choices=['original', 'hindi'], default='original')
     batch_id = serializers.UUIDField(required=False, allow_null=True)
+    session_id = serializers.CharField(max_length=128, required=False, allow_blank=True, default='')
 
 
 class SamplePreviewSerializer(serializers.Serializer):

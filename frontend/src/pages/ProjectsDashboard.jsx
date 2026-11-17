@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { UploadCloud, Sparkles, FolderOpen, AlertCircle, Loader2, FileText, ArrowRight, Trash2 } from 'lucide-react';
 import { getProjects, createProject, deleteProject, formatMediaUrl } from '../api/projectsApi';
+import ConfirmModal from '../components/common/ConfirmModal';
 
 export default function ProjectsDashboard({ onSelectProject }) {
   const [projects, setProjects] = useState([]);
@@ -8,6 +9,14 @@ export default function ProjectsDashboard({ onSelectProject }) {
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState(null);
   const [dragActive, setDragActive] = useState(false);
+  const [confirmModal, setConfirmModal] = useState({
+    isOpen: false,
+    title: '',
+    message: '',
+    confirmText: 'Delete Project',
+    isLoading: false,
+    onConfirm: null,
+  });
 
   const fetchProjects = async () => {
     setLoading(true);
@@ -75,16 +84,27 @@ export default function ProjectsDashboard({ onSelectProject }) {
     }
   };
 
-  const handleDelete = async (e, project) => {
+  const handleDelete = (e, project) => {
     e.stopPropagation();
-    if (!window.confirm(`Delete "${project.title}" and all its generated cards?`)) return;
-
-    try {
-      await deleteProject(project.id);
-      setProjects((prev) => prev.filter((p) => p.id !== project.id));
-    } catch (err) {
-      alert('Failed to delete project.');
-    }
+    setConfirmModal({
+      isOpen: true,
+      title: `Delete Project?`,
+      message: `Are you sure you want to delete "${project.title}" and all its generated batches and cards? This action cannot be undone.`,
+      confirmText: 'Delete Project',
+      confirmVariant: 'danger',
+      isLoading: false,
+      onConfirm: async () => {
+        setConfirmModal((prev) => ({ ...prev, isLoading: true }));
+        try {
+          await deleteProject(project.id);
+          setProjects((prev) => prev.filter((p) => p.id !== project.id));
+          setConfirmModal((prev) => ({ ...prev, isOpen: false, isLoading: false }));
+        } catch (err) {
+          alert('Failed to delete project.');
+          setConfirmModal((prev) => ({ ...prev, isLoading: false }));
+        }
+      },
+    });
   };
 
   return (
@@ -244,6 +264,18 @@ export default function ProjectsDashboard({ onSelectProject }) {
           </div>
         )}
       </div>
+
+      {/* Modern Confirmation Modal */}
+      <ConfirmModal
+        isOpen={confirmModal.isOpen}
+        title={confirmModal.title}
+        message={confirmModal.message}
+        confirmText={confirmModal.confirmText}
+        confirmVariant="danger"
+        isLoading={confirmModal.isLoading}
+        onConfirm={confirmModal.onConfirm}
+        onClose={() => setConfirmModal((prev) => ({ ...prev, isOpen: false }))}
+      />
     </div>
   );
 }

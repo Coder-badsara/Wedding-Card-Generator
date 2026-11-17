@@ -11,6 +11,7 @@ def create_and_dispatch_batch(
     batch_name: str,
     target_language: str = 'original',
     batch_id: str | None = None,
+    session_id: str | None = None,
     max_retries: int = 5
 ) -> GenerationBatch:
     guest_list = [name.strip() for name in guest_names_raw.splitlines() if name.strip()]
@@ -28,6 +29,9 @@ def create_and_dispatch_batch(
             batch = GenerationBatch.objects.get(id=batch_id, project=project)
         except GenerationBatch.DoesNotExist:
             raise ValidationError({"batch_id": "Target batch not found."})
+
+        if session_id and batch.session_id and batch.session_id != session_id:
+            raise ValidationError({"batch_id": "Permission denied for this batch."})
 
         if batch.status == 'PROCESSING':
             raise ValidationError({"batch_id": "This batch is currently generating. Please wait for it to complete."})
@@ -66,7 +70,8 @@ def create_and_dispatch_batch(
                     raw_input_names=guest_names_raw,
                     target_language=target_language,
                     total_guests=len(guest_list),
-                    status='PENDING'
+                    status='PENDING',
+                    session_id=session_id
                 )
 
                 # Dispatch worker strictly AFTER database transaction commits

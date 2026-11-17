@@ -58,7 +58,13 @@ class CardProjectViewSet(viewsets.ModelViewSet):
     @action(detail=True, methods=['get'])
     def batches(self, request, pk=None):
         project = self.get_object()
+        session_id = request.headers.get('X-Session-ID') or request.query_params.get('session_id')
         batches = project.batches.all()
+        if session_id:
+            batches = batches.filter(session_id=session_id)
+        else:
+            batches = batches.none()
+
         for batch in batches:
             check_and_recover_batch(batch)
         serializer = GenerationBatchSerializer(batches, many=True)
@@ -70,13 +76,20 @@ class CardProjectViewSet(viewsets.ModelViewSet):
         input_serializer = BatchCreateSerializer(data=request.data)
         input_serializer.is_valid(raise_exception=True)
 
+        session_id = (
+            request.headers.get('X-Session-ID')
+            or input_serializer.validated_data.get('session_id')
+            or request.query_params.get('session_id')
+        )
+
         batch_id_val = input_serializer.validated_data.get('batch_id')
         batch = create_and_dispatch_batch(
             project_id=str(project.id),
             guest_names_raw=input_serializer.validated_data['guest_names'],
             batch_name=input_serializer.validated_data.get('batch_name', ''),
             target_language=input_serializer.validated_data.get('target_language', 'original'),
-            batch_id=str(batch_id_val) if batch_id_val else None
+            batch_id=str(batch_id_val) if batch_id_val else None,
+            session_id=session_id
         )
 
         return Response(GenerationBatchSerializer(batch).data, status=status.HTTP_202_ACCEPTED)
@@ -112,8 +125,14 @@ class CardProjectViewSet(viewsets.ModelViewSet):
 
 
 class GenerationBatchViewSet(viewsets.ModelViewSet):
-    queryset = GenerationBatch.objects.all()
     serializer_class = GenerationBatchSerializer
+
+    def get_queryset(self):
+        qs = GenerationBatch.objects.all()
+        session_id = self.request.headers.get('X-Session-ID') or self.request.query_params.get('session_id')
+        if session_id:
+            return qs.filter(session_id=session_id)
+        return qs.none()
 
     def retrieve(self, request, *args, **kwargs):
         batch = self.get_object()
@@ -121,6 +140,10 @@ class GenerationBatchViewSet(viewsets.ModelViewSet):
         return super().retrieve(request, *args, **kwargs)
 
     def perform_destroy(self, instance):
+        session_id = self.request.headers.get('X-Session-ID') or self.request.query_params.get('session_id')
+        if instance.session_id and session_id and instance.session_id != session_id:
+            raise ValidationError({"error": "You do not have permission to delete this batch."})
+
         batch_dir = Path(settings.MEDIA_ROOT) / "projects" / str(instance.project.id) / "batches" / str(instance.id)
         if batch_dir.exists():
             shutil.rmtree(batch_dir, ignore_errors=True)

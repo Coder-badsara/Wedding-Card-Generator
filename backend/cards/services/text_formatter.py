@@ -23,15 +23,17 @@ def format_wedding_lines(text: str, target_language: str = 'original', line_pref
     is_hindi = (target_language == 'hindi') or any('\u0900' <= c <= '\u097f' for c in s)
 
     # 1. Detect family pattern (and family, with family, एवं सपरिवार, सपरिवार)
-    fam_pattern = r'(?:\s*(?:,|–|-)?\s*)(and\s+family|with\s+family|w/\s+family|&\s+family|and\s+fam|with\s+fam|एवं\s+सपरिवार|व\s+सपरिवार|सपरिवार)\b'
+    fam_pattern = r'(?:\s*(?:,|–|-)?\s*)(and\s+family|with\s+family|w/\s+family|&\s+family|and\s+fam|with\s+fam|एवं\s+सपरिवार|व\s+सपरिवार|सपरिवार)(?:\s|$|[,\.\)\-])'
     fam_match = re.search(fam_pattern, s, re.IGNORECASE)
 
     has_family = False
+    matched_fam = ""
     extra_location = ""
     names_part = s
 
     if fam_match:
         has_family = True
+        matched_fam = fam_match.group(1).strip()
         names_part = s[:fam_match.start()].strip().rstrip(',–- ')
         after_fam = s[fam_match.end():].strip()
         if after_fam:
@@ -176,19 +178,29 @@ def format_wedding_lines(text: str, target_language: str = 'original', line_pref
         if custom_lines:
             return custom_lines
 
+    # Determine family string if present
+    fam_str = ""
+    if has_family:
+        if is_hindi:
+            if matched_fam in ["एवं सपरिवार", "व सपरिवार"]:
+                fam_str = matched_fam
+            else:
+                fam_str = "सपरिवार"
+        else:
+            fam_str = matched_fam or "with family"
+
     # 1 Name cases
     if len(names) == 1:
         if has_family and extra_location:
             return [
                 names[0],
-                "एवं सपरिवार" if is_hindi else "and with family",
+                fam_str,
                 extra_location
             ]
         elif has_family:
             return [
                 names[0],
-                "एवं" if is_hindi else "and",
-                "सपरिवार" if is_hindi else "with family"
+                fam_str
             ]
         elif extra_location:
             return [names[0], extra_location]
@@ -200,14 +212,14 @@ def format_wedding_lines(text: str, target_language: str = 'original', line_pref
         if has_family and extra_location:
             return [
                 f"{names[0]}, {names[1]}",
-                "एवं सपरिवार" if is_hindi else "and with family",
+                fam_str,
                 extra_location
             ]
         elif has_family:
             return [
-                f"{names[0]}, {names[1]}",
-                "एवं" if is_hindi else "and",
-                "सपरिवार" if is_hindi else "with family"
+                names[0],
+                names[1],
+                fam_str
             ]
         elif extra_location:
             return [names[0], names[1], extra_location]
@@ -223,7 +235,6 @@ def format_wedding_lines(text: str, target_language: str = 'original', line_pref
         line1 = ', '.join(names[:mid])
         line2 = ', '.join(names[mid:])
         if has_family:
-            fam_str = "एवं सपरिवार" if is_hindi else "and with family"
             line3 = f"{fam_str} ({extra_location})" if extra_location else fam_str
             return [line1, line2, line3]
         elif extra_location:

@@ -1,0 +1,431 @@
+{
+  "version": "1.0.0",
+  "description": "Centralized registry of wedding card name formatting test cases. Covers English, Hindi, single names, multiple names, family phrasing, locations, and custom line preferences.",
+  "cases": [
+    {
+      "id": "single_name_en_simple",
+      "category": "single_name",
+      "description": "Single English name without family or location",
+      "input": "Umesh Badsara",
+      "target_language": "original",
+      "line_preference": null,
+      "expected_lines": [
+        "Umesh Badsara"
+      ]
+    },
+    {
+      "id": "single_name_en_numbered",
+      "category": "single_name",
+      "description": "Single English name with leading list numbering",
+      "input": "1. Umesh Badsara",
+      "target_language": "original",
+      "line_preference": null,
+      "expected_lines": [
+        "Umesh Badsara"
+      ]
+    },
+    {
+      "id": "single_name_hi_simple",
+      "category": "single_name",
+      "description": "Single Hindi name without family or location",
+      "input": "उमेश बड़सरा",
+      "target_language": "original",
+      "line_preference": null,
+      "expected_lines": [
+        "उमेश बड़सरा"
+      ]
+    },
+    {
+      "id": "single_name_hi_numbered",
+      "category": "single_name",
+      "description": "Single Hindi name with leading list numbering",
+      "input": "02) उमेश बड़सरा",
+      "target_language": "original",
+      "line_preference": null,
+      "expected_lines": [
+        "उमेश बड़सरा"
+      ]
+    },
+    {
+      "id": "single_name_en_transliterate_to_hindi",
+      "category": "single_name",
+      "description": "Single English name with target_language set to hindi",
+      "input": "Umesh Badsara",
+      "target_language": "hindi",
+      "line_preference": null,
+      "expected_lines": [
+        "उमेश बड़सरा"
+      ]
+    },
+    {
+      "id": "single_name_en_with_family",
+      "category": "single_name_with_family",
+      "description": "Single English name with 'with family' -> 2 lines, no extra 'and'",
+      "input": "Umesh Badsara with family",
+      "target_language": "original",
+      "line_preference": null,
+      "expected_lines": [
+        "Umesh Badsara",
+        "with family"
+      ]
+    },
+    {
+      "id": "single_name_en_and_family",
+      "category": "single_name_with_family",
+      "description": "Single English name with 'and family' -> 2 lines (Name, and family)",
+      "input": "Umesh Badsara and family",
+      "target_language": "original",
+      "line_preference": null,
+      "expected_lines": [
+        "Umesh Badsara",
+        "and family"
+      ]
+    },
+    {
+      "id": "single_name_en_ampersand_family",
+      "category": "single_name_with_family",
+      "description": "Single English name with '& family'",
+      "input": "Umesh Badsara & family",
+      "target_language": "original",
+      "line_preference": null,
+      "expected_lines": [
+        "Umesh Badsara",
+        "& family"
+      ]
+    },
+    {
+      "id": "single_name_hi_saparivar",
+      "category": "single_name_with_family",
+      "description": "Single Hindi name with 'सपरिवार' -> 2 lines, no extra 'एवं'",
+      "input": "उमेश बड़सरा सपरिवार",
+      "target_language": "original",
+      "line_preference": null,
+      "expected_lines": [
+        "उमेश बड़सरा",
+        "सपरिवार"
+      ]
+    },
+    {
+      "id": "single_name_hi_evam_saparivar",
+      "category": "single_name_with_family",
+      "description": "Single Hindi name with explicit 'एवं सपरिवार'",
+      "input": "उमेश बड़सरा एवं सपरिवार",
+      "target_language": "original",
+      "line_preference": null,
+      "expected_lines": [
+        "उमेश बड़सरा",
+        "एवं सपरिवार"
+      ]
+    },
+    {
+      "id": "single_name_en_family_to_hindi",
+      "category": "single_name_with_family",
+      "description": "English name + family transliterated to Hindi",
+      "input": "Umesh Badsara and family",
+      "target_language": "hindi",
+      "line_preference": null,
+      "expected_lines": [
+        "उमेश बड़सरा",
+        "सपरिवार"
+      ]
+    },
+    {
+      "id": "single_name_en_paren_location",
+      "category": "locations",
+      "description": "Single name with parenthetical location: Name on line 1, Location on line 2",
+      "input": "Umesh Badsara (Jaipur)",
+      "target_language": "original",
+      "line_preference": null,
+      "expected_lines": [
+        "Umesh Badsara",
+        "Jaipur"
+      ]
+    },
+    {
+      "id": "single_name_en_dash_location",
+      "category": "locations",
+      "description": "Single name with dash location: Name on line 1, Location on line 2",
+      "input": "Umesh Badsara - Jaipur",
+      "target_language": "original",
+      "line_preference": null,
+      "expected_lines": [
+        "Umesh Badsara",
+        "Jaipur"
+      ]
+    },
+    {
+      "id": "single_name_en_known_city_location",
+      "category": "locations",
+      "description": "Single name followed by known city without delimiter",
+      "input": "Umesh Badsara Jaipur",
+      "target_language": "original",
+      "line_preference": null,
+      "expected_lines": [
+        "Umesh Badsara",
+        "Jaipur"
+      ]
+    },
+    {
+      "id": "single_name_hi_paren_location",
+      "category": "locations",
+      "description": "Single Hindi name with location in parentheses",
+      "input": "उमेश बड़सरा (जयपुर)",
+      "target_language": "original",
+      "line_preference": null,
+      "expected_lines": [
+        "उमेश बड़सरा",
+        "जयपुर"
+      ]
+    },
+    {
+      "id": "single_name_en_family_and_location",
+      "category": "family_and_location",
+      "description": "Single name with both family and location: Line 1 name, Line 2 and family, Line 3 location",
+      "input": "Umesh Badsara and family Jaipur",
+      "target_language": "original",
+      "line_preference": null,
+      "expected_lines": [
+        "Umesh Badsara",
+        "and family",
+        "Jaipur"
+      ]
+    },
+    {
+      "id": "single_name_en_family_and_paren_location",
+      "category": "family_and_location",
+      "description": "Single name with family and parenthesized location",
+      "input": "Umesh Badsara and family (Jaipur)",
+      "target_language": "original",
+      "line_preference": null,
+      "expected_lines": [
+        "Umesh Badsara",
+        "and family",
+        "Jaipur"
+      ]
+    },
+    {
+      "id": "single_name_hi_family_and_location",
+      "category": "family_and_location",
+      "description": "Single Hindi name with family and location",
+      "input": "उमेश बड़सरा सपरिवार जयपुर",
+      "target_language": "original",
+      "line_preference": null,
+      "expected_lines": [
+        "उमेश बड़सरा",
+        "सपरिवार",
+        "जयपुर"
+      ]
+    },
+    {
+      "id": "two_names_en_comma_no_family",
+      "category": "two_names",
+      "description": "Two names without family separated by comma (e.g. organizational or couple names) -> 2 lines, no automatic 'and'",
+      "input": "Tejaji Spark Runners, Team Panchyawala",
+      "target_language": "original",
+      "line_preference": null,
+      "expected_lines": [
+        "Tejaji Spark Runners",
+        "Team Panchyawala"
+      ]
+    },
+    {
+      "id": "two_names_en_explicit_and",
+      "category": "two_names",
+      "description": "Two names with explicit 'and' keyword -> Line 1: Name 1, Line 2: and, Line 3: Name 2",
+      "input": "Umesh Badsara and Mayank Badsara",
+      "target_language": "original",
+      "line_preference": null,
+      "expected_lines": [
+        "Umesh Badsara",
+        "and",
+        "Mayank Badsara"
+      ]
+    },
+    {
+      "id": "two_names_en_explicit_ampersand",
+      "category": "two_names",
+      "description": "Two names with explicit '&' keyword -> Line 1: Name 1, Line 2: and, Line 3: Name 2",
+      "input": "Umesh Badsara & Mayank Badsara",
+      "target_language": "original",
+      "line_preference": null,
+      "expected_lines": [
+        "Umesh Badsara",
+        "and",
+        "Mayank Badsara"
+      ]
+    },
+    {
+      "id": "two_names_hi_explicit_evam",
+      "category": "two_names",
+      "description": "Two Hindi names with explicit 'एवं' keyword -> Line 1: Name 1, Line 2: एवं, Line 3: Name 2",
+      "input": "उमेश बड़सरा एवं मयंक बड़सरा",
+      "target_language": "original",
+      "line_preference": null,
+      "expected_lines": [
+        "उमेश बड़सरा",
+        "एवं",
+        "मयंक बड़सरा"
+      ]
+    },
+    {
+      "id": "two_names_en_with_location",
+      "category": "two_names",
+      "description": "Two names without family + location -> Line 1: Name 1, Line 2: Name 2, Line 3: Location",
+      "input": "Umesh Badsara, Mayank Badsara (Jaipur)",
+      "target_language": "original",
+      "line_preference": null,
+      "expected_lines": [
+        "Umesh Badsara",
+        "Mayank Badsara",
+        "Jaipur"
+      ]
+    },
+    {
+      "id": "two_names_en_and_family",
+      "category": "two_names_with_family",
+      "description": "Two names with 'and family' on 3 lines -> Line 1: Name 1, Line 2: Name 2, Line 3: and family",
+      "input": "Umesh Badsara, Mayank Badsara and family",
+      "target_language": "original",
+      "line_preference": null,
+      "expected_lines": [
+        "Umesh Badsara",
+        "Mayank Badsara",
+        "and family"
+      ]
+    },
+    {
+      "id": "two_names_hi_saparivar",
+      "category": "two_names_with_family",
+      "description": "Two Hindi names with 'सपरिवार' on 3 lines -> Line 1: Name 1, Line 2: Name 2, Line 3: सपरिवार",
+      "input": "उमेश बड़सरा, मयंक बड़सरा सपरिवार",
+      "target_language": "original",
+      "line_preference": null,
+      "expected_lines": [
+        "उमेश बड़सरा",
+        "मयंक बड़सरा",
+        "सपरिवार"
+      ]
+    },
+    {
+      "id": "two_names_en_family_and_location",
+      "category": "two_names_with_family",
+      "description": "Two names with family and location -> Line 1: names, Line 2: and family, Line 3: location",
+      "input": "Umesh Badsara, Mayank Badsara and family (Jaipur)",
+      "target_language": "original",
+      "line_preference": null,
+      "expected_lines": [
+        "Umesh Badsara, Mayank Badsara",
+        "and family",
+        "Jaipur"
+      ]
+    },
+    {
+      "id": "three_names_en_no_family",
+      "category": "three_or_more_names",
+      "description": "Three names without family -> Line 1: first 2 names, Line 2: 3rd name",
+      "input": "Umesh Badsara, Mayank Badsara, Aryan Badsara",
+      "target_language": "original",
+      "line_preference": null,
+      "expected_lines": [
+        "Umesh Badsara, Mayank Badsara",
+        "Aryan Badsara"
+      ]
+    },
+    {
+      "id": "three_names_en_with_known_city",
+      "category": "three_or_more_names",
+      "description": "Three names with trailing known city -> Line 1: first 2 names, Line 2: 3rd name, Line 3: city",
+      "input": "Umesh Badsara, Mayank Badsara, Aryan Badsara Jaipur",
+      "target_language": "original",
+      "line_preference": null,
+      "expected_lines": [
+        "Umesh Badsara, Mayank Badsara",
+        "Aryan Badsara",
+        "Jaipur"
+      ]
+    },
+    {
+      "id": "three_names_en_with_family",
+      "category": "three_or_more_names",
+      "description": "Three names with family -> Line 1: first 2 names, Line 2: 3rd name, Line 3: and family",
+      "input": "Umesh Badsara, Mayank Badsara, Aryan Badsara and family",
+      "target_language": "original",
+      "line_preference": null,
+      "expected_lines": [
+        "Umesh Badsara, Mayank Badsara",
+        "Aryan Badsara",
+        "and family"
+      ]
+    },
+    {
+      "id": "three_names_en_with_family_and_location",
+      "category": "three_or_more_names",
+      "description": "Three names with family and location -> Line 1: first 2 names, Line 2: 3rd name, Line 3: and family (Location)",
+      "input": "Umesh Badsara, Mayank Badsara, Aryan Badsara and family (Jaipur)",
+      "target_language": "original",
+      "line_preference": null,
+      "expected_lines": [
+        "Umesh Badsara, Mayank Badsara",
+        "Aryan Badsara",
+        "and family (Jaipur)"
+      ]
+    },
+    {
+      "id": "explicit_multiline_user_input_2lines",
+      "category": "explicit_multiline",
+      "description": "User explicitly typed newlines in text -> preserved directly up to 3 lines",
+      "input": "Umesh Badsara\nJaipur",
+      "target_language": "original",
+      "line_preference": null,
+      "expected_lines": [
+        "Umesh Badsara",
+        "Jaipur"
+      ]
+    },
+    {
+      "id": "explicit_multiline_user_input_3lines",
+      "category": "explicit_multiline",
+      "description": "User explicitly typed 3 lines -> preserved directly",
+      "input": "Umesh Badsara\nand\nwith family",
+      "target_language": "original",
+      "line_preference": null,
+      "expected_lines": [
+        "Umesh Badsara",
+        "and",
+        "with family"
+      ]
+    },
+    {
+      "id": "custom_preference_name_and_family_2lines",
+      "category": "custom_preference",
+      "description": "Custom line preference: Line 1 name, Line 2 'and family' combined",
+      "input": "Umesh Badsara and family",
+      "target_language": "original",
+      "line_preference": {
+        "line1": ["names"],
+        "line2": ["and_family"]
+      },
+      "expected_lines": [
+        "Umesh Badsara",
+        "and family"
+      ]
+    },
+    {
+      "id": "custom_preference_two_names_split_lines",
+      "category": "custom_preference",
+      "description": "Custom line preference: Line 1 Name 1, Line 2 Name 2, Line 3 'and family'",
+      "input": "Umesh Badsara, Mayank Badsara and family",
+      "target_language": "original",
+      "line_preference": {
+        "line1": ["names"],
+        "line2": ["secondary_name"],
+        "line3": ["and_family"]
+      },
+      "expected_lines": [
+        "Umesh Badsara",
+        "Mayank Badsara",
+        "and family"
+      ]
+    }
+  ]
+}

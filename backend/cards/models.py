@@ -79,6 +79,7 @@ class GenerationBatch(models.Model):
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='PENDING')
     error_message = models.TextField(blank=True, default='')
     zip_file = models.FileField(upload_to='projects/zips/', null=True, blank=True)
+    session_id = models.CharField(max_length=128, blank=True, null=True, db_index=True)
 
     # Process Monitoring Fields
     worker_pid = models.PositiveIntegerField(null=True, blank=True)

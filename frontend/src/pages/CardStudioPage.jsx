@@ -22,6 +22,7 @@ import { getBatchStatus, retryBatch, deleteBatch, deleteCard } from '../api/batc
 import VisualCardCanvas from '../components/studio/VisualCardCanvas';
 import TypographyToolbar from '../components/studio/TypographyToolbar';
 import CustomSelect from '../components/common/CustomSelect';
+import ConfirmModal from '../components/common/ConfirmModal';
 
 export default function CardStudioPage({ projectId }) {
   const [project, setProject] = useState(null);
@@ -29,6 +30,17 @@ export default function CardStudioPage({ projectId }) {
   const [fonts, setFonts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+
+  // Custom Confirmation Modal State
+  const [confirmModal, setConfirmModal] = useState({
+    isOpen: false,
+    title: '',
+    message: '',
+    confirmText: 'Delete',
+    confirmVariant: 'danger',
+    isLoading: false,
+    onConfirm: null,
+  });
 
   // Active Tab: 'generate' or 'editor'
   const [activeTab, setActiveTab] = useState('generate');
@@ -575,51 +587,75 @@ export default function CardStudioPage({ projectId }) {
     }
   };
 
-  const handleDeleteBatch = async (batchId) => {
+  const handleDeleteBatch = (batchId) => {
     const batchToDelete = batches.find((b) => b.id === batchId);
     if (!batchToDelete) return;
 
     const cleanBatchName = (batchToDelete.batch_name || 'Untitled').replace(/Batch\s*#\s*/i, 'Batch ');
-    const confirmMsg = `Delete Batch ${batchToDelete.batch_number} (${cleanBatchName}) and all its ${batchToDelete.total_guests} generated cards?`;
-    if (!window.confirm(confirmMsg)) return;
+    const count = batchToDelete.total_guests || 0;
+    const cardText = count === 1 ? '1 generated card' : `${count} generated cards`;
 
-    try {
-      await deleteBatch(batchId);
-      const remaining = batches.filter((b) => b.id !== batchId);
-      setBatches(remaining);
-      if (activeBatch?.id === batchId) {
-        setActiveBatch(remaining[0] || null);
-        setIsPolling(false);
-      }
-      if (targetBatchId === batchId) {
-        setTargetBatchId(remaining[0]?.id || 'new');
-      }
-    } catch (err) {
-      alert('Failed to delete batch. Please try again.');
-    }
+    setConfirmModal({
+      isOpen: true,
+      title: `Delete Batch ${batchToDelete.batch_number}?`,
+      message: `Delete Batch ${batchToDelete.batch_number} (${cleanBatchName}) and all its ${cardText}? This action cannot be undone.`,
+      confirmText: 'Delete Batch',
+      confirmVariant: 'danger',
+      isLoading: false,
+      onConfirm: async () => {
+        setConfirmModal((prev) => ({ ...prev, isLoading: true }));
+        try {
+          await deleteBatch(batchId);
+          const remaining = batches.filter((b) => b.id !== batchId);
+          setBatches(remaining);
+          if (activeBatch?.id === batchId) {
+            setActiveBatch(remaining[0] || null);
+            setIsPolling(false);
+          }
+          if (targetBatchId === batchId) {
+            setTargetBatchId(remaining[0]?.id || 'new');
+          }
+          setConfirmModal((prev) => ({ ...prev, isOpen: false, isLoading: false }));
+        } catch (err) {
+          alert('Failed to delete batch. Please try again.');
+          setConfirmModal((prev) => ({ ...prev, isLoading: false }));
+        }
+      },
+    });
   };
 
-  const handleDeleteCard = async (cardId, guestName) => {
-    if (!window.confirm(`Delete card for "${guestName}"?`)) return;
-
-    try {
-      await deleteCard(cardId);
-      if (activeBatch && activeBatch.cards) {
-        const remainingCards = activeBatch.cards.filter((c) => c.id !== cardId);
-        const updatedBatch = {
-          ...activeBatch,
-          cards: remainingCards,
-          total_guests: remainingCards.length,
-          processed_guests: remainingCards.length,
-        };
-        setActiveBatch(updatedBatch);
-        setBatches((prev) =>
-          prev.map((b) => (b.id === activeBatch.id ? updatedBatch : b))
-        );
-      }
-    } catch (err) {
-      alert('Failed to delete card. Please try again.');
-    }
+  const handleDeleteCard = (cardId, guestName) => {
+    setConfirmModal({
+      isOpen: true,
+      title: `Delete Personalized Card?`,
+      message: `Are you sure you want to delete the personalized card for "${guestName}"?`,
+      confirmText: 'Delete Card',
+      confirmVariant: 'danger',
+      isLoading: false,
+      onConfirm: async () => {
+        setConfirmModal((prev) => ({ ...prev, isLoading: true }));
+        try {
+          await deleteCard(cardId);
+          if (activeBatch && activeBatch.cards) {
+            const remainingCards = activeBatch.cards.filter((c) => c.id !== cardId);
+            const updatedBatch = {
+              ...activeBatch,
+              cards: remainingCards,
+              total_guests: remainingCards.length,
+              processed_guests: remainingCards.length,
+            };
+            setActiveBatch(updatedBatch);
+            setBatches((prev) =>
+              prev.map((b) => (b.id === activeBatch.id ? updatedBatch : b))
+            );
+          }
+          setConfirmModal((prev) => ({ ...prev, isOpen: false, isLoading: false }));
+        } catch (err) {
+          alert('Failed to delete card. Please try again.');
+          setConfirmModal((prev) => ({ ...prev, isLoading: false }));
+        }
+      },
+    });
   };
 
   if (loading) {
@@ -1184,6 +1220,18 @@ export default function CardStudioPage({ projectId }) {
           </div>
         </div>
       )}
+
+      {/* Modern Confirmation & Delete Modal */}
+      <ConfirmModal
+        isOpen={confirmModal.isOpen}
+        title={confirmModal.title}
+        message={confirmModal.message}
+        confirmText={confirmModal.confirmText}
+        confirmVariant={confirmModal.confirmVariant || 'danger'}
+        isLoading={confirmModal.isLoading}
+        onConfirm={confirmModal.onConfirm}
+        onClose={() => setConfirmModal((prev) => ({ ...prev, isOpen: false }))}
+      />
     </div>
   );
 }
