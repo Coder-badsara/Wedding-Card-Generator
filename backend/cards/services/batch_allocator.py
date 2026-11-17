@@ -60,7 +60,10 @@ def create_and_dispatch_batch(
     for attempt in range(max_retries):
         try:
             with transaction.atomic():
-                last_batch = GenerationBatch.objects.filter(project=project).order_by('-batch_number').first()
+                session_batches = GenerationBatch.objects.filter(project=project)
+                if session_id:
+                    session_batches = session_batches.filter(session_id=session_id)
+                last_batch = session_batches.order_by('-batch_number').first()
                 next_batch_num = (last_batch.batch_number + 1) if last_batch else 1
 
                 batch = GenerationBatch.objects.create(

@@ -23,6 +23,15 @@ import VisualCardCanvas from '../components/studio/VisualCardCanvas';
 import TypographyToolbar from '../components/studio/TypographyToolbar';
 import CustomSelect from '../components/common/CustomSelect';
 import ConfirmModal from '../components/common/ConfirmModal';
+import {
+  saveBatchToStorage,
+  getBatchesFromStorage,
+  deleteBatchFromStorage,
+  deleteCardFromStorage,
+  cacheBatchArtifacts,
+  downloadBatchZipArchive,
+  downloadOrViewCard
+} from '../utils/pdfStorage';
 
 export default function CardStudioPage({ projectId }) {
   const [project, setProject] = useState(null);
@@ -53,12 +62,8 @@ export default function CardStudioPage({ projectId }) {
   const [fontColor, setFontColor] = useState('#800020');
   const [textAlign, setTextAlign] = useState('center');
   const [prefixText, setPrefixText] = useState('');
-  const [sampleText, setSampleText] = useState('अमित शर्मा एवं सपरिवार');
-  const [linePreference, setLinePreference] = useState({
-    line1: ['names'],
-    line2: ['and'],
-    line3: ['with_family'],
-  });
+  const [sampleText, setSampleText] = useState('अमित शर्मा सपरिवार');
+  const [linePreference, setLinePreference] = useState({});
   const [lineBoxes, setLineBoxes] = useState({
     line1: { x: 0.58, y: 0.52, w: 0.35, h: 0.045 },
     line2: { x: 0.58, y: 0.575, w: 0.35, h: 0.045 },
@@ -83,6 +88,18 @@ export default function CardStudioPage({ projectId }) {
   const [isPolling, setIsPolling] = useState(false);
 
   const fetchProjectData = useCallback(async () => {
+    // 1. Immediately load any existing batches from IndexedDB cache
+    let cachedBatches = [];
+    try {
+      cachedBatches = await getBatchesFromStorage(projectId);
+      if (cachedBatches && cachedBatches.length > 0) {
+        setBatches(cachedBatches);
+        setActiveBatch((prev) => prev || cachedBatches[0]);
+      }
+    } catch (e) {
+      console.warn('[CardStudioPage] IndexedDB load error:', e);
+    }
+
     try {
       const [projData, batchesData, fontsData] = await Promise.all([
         getProject(projectId),
@@ -91,8 +108,14 @@ export default function CardStudioPage({ projectId }) {
       ]);
 
       setProject(projData);
-      setBatches(batchesData);
       setFonts(fontsData);
+
+      // Merge server batches with cached batches
+      const serverIds = new Set((batchesData || []).map((b) => b.id));
+      const cachedOnly = (cachedBatches || []).filter((b) => !serverIds.has(b.id));
+      const mergedBatches = [...(batchesData || []), ...cachedOnly];
+
+      setBatches(mergedBatches);
 
       setBoxCoords({
         x: projData.box_x,
@@ -133,11 +156,22 @@ export default function CardStudioPage({ projectId }) {
         });
       }
 
-      // If there are previous batches, show the latest one
-      if (batchesData.length > 0) {
-        setActiveBatch(batchesData[0]);
-        if (batchesData[0].status === 'PROCESSING' || batchesData[0].status === 'PENDING') {
+      // If there are batches, select the latest one
+      if (mergedBatches.length > 0) {
+        setActiveBatch((prev) => {
+          const found = mergedBatches.find((b) => b.id === prev?.id);
+          return found || mergedBatches[0];
+        });
+        if (mergedBatches[0].status === 'PROCESSING' || mergedBatches[0].status === 'PENDING') {
           setIsPolling(true);
+        }
+      }
+
+      // Sync server batches to IndexedDB in background
+      for (const b of (batchesData || [])) {
+        saveBatchToStorage(b);
+        if (b.status === 'COMPLETED') {
+          cacheBatchArtifacts(b, formatMediaUrl);
         }
       }
     } catch (err) {
@@ -165,7 +199,13 @@ export default function CardStudioPage({ projectId }) {
           const updatedBatches = await getProjectBatches(projectId);
           setBatches(updatedBatches);
           const fullBatch = updatedBatches.find((b) => b.id === activeBatch.id);
-          if (fullBatch) setActiveBatch(fullBatch);
+          if (fullBatch) {
+            setActiveBatch(fullBatch);
+            saveBatchToStorage(fullBatch);
+            if (fullBatch.status === 'COMPLETED') {
+              cacheBatchArtifacts(fullBatch, formatMediaUrl);
+            }
+          }
         }
       } catch (err) {
         console.error('Polling error', err);
@@ -574,12 +614,16 @@ export default function CardStudioPage({ projectId }) {
       const responseBatch = await createBatch(projectId, payload);
 
       setActiveBatch(responseBatch);
+      saveBatchToStorage(responseBatch);
       setTargetBatchId(responseBatch.id);
       setBatchLabel('');
       setRawGuestNames('1. ');
       setIsPolling(true);
       const updatedBatches = await getProjectBatches(projectId);
       setBatches(updatedBatches);
+      for (const b of updatedBatches) {
+        saveBatchToStorage(b);
+      }
     } catch (err) {
       alert(err.response?.data?.error || err.response?.data?.batch_id || 'Failed to start generation.');
     } finally {
@@ -605,7 +649,8 @@ export default function CardStudioPage({ projectId }) {
       onConfirm: async () => {
         setConfirmModal((prev) => ({ ...prev, isLoading: true }));
         try {
-          await deleteBatch(batchId);
+          await deleteBatch(batchId).catch((e) => console.warn('Server deleteBatch error:', e));
+          await deleteBatchFromStorage(batchId);
           const remaining = batches.filter((b) => b.id !== batchId);
           setBatches(remaining);
           if (activeBatch?.id === batchId) {
@@ -635,7 +680,8 @@ export default function CardStudioPage({ projectId }) {
       onConfirm: async () => {
         setConfirmModal((prev) => ({ ...prev, isLoading: true }));
         try {
-          await deleteCard(cardId);
+          await deleteCard(cardId).catch((e) => console.warn('Server deleteCard error:', e));
+          await deleteCardFromStorage(cardId, activeBatch?.id);
           if (activeBatch && activeBatch.cards) {
             const remainingCards = activeBatch.cards.filter((c) => c.id !== cardId);
             const updatedBatch = {
@@ -648,6 +694,7 @@ export default function CardStudioPage({ projectId }) {
             setBatches((prev) =>
               prev.map((b) => (b.id === activeBatch.id ? updatedBatch : b))
             );
+            saveBatchToStorage(updatedBatch);
           }
           setConfirmModal((prev) => ({ ...prev, isOpen: false, isLoading: false }));
         } catch (err) {
@@ -1032,14 +1079,14 @@ export default function CardStudioPage({ projectId }) {
                       </p>
                     </div>
 
-                    <a
-                      href={formatMediaUrl(activeBatch.zip_url)}
-                      download
-                      className="inline-flex items-center gap-2 px-5 py-2.5 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 rounded-xl transition-all shadow-md active:scale-95 shrink-0"
+                    <button
+                      type="button"
+                      onClick={() => downloadBatchZipArchive(activeBatch, formatMediaUrl(activeBatch.zip_url))}
+                      className="inline-flex items-center gap-2 px-5 py-2.5 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 rounded-xl transition-all shadow-md active:scale-95 shrink-0 cursor-pointer"
                     >
                       <Download className="w-4 h-4" />
                       Download ZIP Archive
-                    </a>
+                    </button>
                   </div>
                 )}
 
@@ -1067,17 +1114,14 @@ export default function CardStudioPage({ projectId }) {
                             </div>
 
                             <div className="flex items-center gap-1 shrink-0">
-                              {downloadUrl && (
-                                <a
-                                  href={downloadUrl}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="p-1.5 text-slate-500 hover:text-rose-900 hover:bg-white rounded-lg transition-colors"
-                                  title="Download PDF"
-                                >
-                                  <Download className="w-3.5 h-3.5" />
-                                </a>
-                              )}
+                              <button
+                                type="button"
+                                onClick={() => downloadOrViewCard(card, downloadUrl, 'open')}
+                                className="p-1.5 text-slate-500 hover:text-rose-900 hover:bg-white rounded-lg transition-colors cursor-pointer"
+                                title="Open / Download PDF"
+                              >
+                                <Download className="w-3.5 h-3.5" />
+                              </button>
                               <button
                                 type="button"
                                 onClick={() => handleDeleteCard(card.id, card.guest_name)}

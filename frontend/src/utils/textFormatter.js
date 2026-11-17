@@ -171,7 +171,8 @@ export function formatWeddingLines(text, isHindi = false, linePreference = null)
       }
 
       if (items.includes('and')) {
-        if (hasFamily || names.length > 1) {
+        const hadExplicitAnd = /(?:^|\s+)(?:and|&|एवं|और|व)(?:\s+|$)/i.test(raw);
+        if ((names.length > 1 && hadExplicitAnd) || (items.includes('and_family') && hasFamily)) {
           lineParts.push(andStr);
         }
       }

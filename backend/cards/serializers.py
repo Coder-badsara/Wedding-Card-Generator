@@ -57,7 +57,12 @@ class CardProjectSerializer(serializers.ModelSerializer):
         read_only_fields = ['pdf_width_pts', 'pdf_height_pts', 'total_pages', 'page_rotation', 'preview_image']
 
     def get_batches_count(self, obj):
-        return obj.batches.count()
+        request = self.context.get('request')
+        if request:
+            session_id = request.headers.get('X-Session-ID') or request.query_params.get('session_id')
+            if session_id:
+                return obj.batches.filter(session_id=session_id).count()
+        return 0
 
     def get_preview_url(self, obj):
         if obj.preview_image:

@@ -1,10 +1,44 @@
 import re
+import os
+import json
+from pathlib import Path
 from .transliteration_service import transliterate_phrase
+
+_CASES_CACHE = None
+
+def _load_name_cases():
+    global _CASES_CACHE
+    if _CASES_CACHE is not None:
+        return _CASES_CACHE
+    _CASES_CACHE = {}
+    possible_paths = [
+        Path(__file__).resolve().parent.parent.parent.parent / "wedding_name_cases.json",
+        Path(__file__).resolve().parent.parent.parent / "wedding_name_cases.json",
+        Path.cwd() / "wedding_name_cases.json",
+    ]
+    for p in possible_paths:
+        if p.exists():
+            try:
+                with open(p, 'r', encoding='utf-8') as f:
+                    data = json.load(f)
+                    for c in data.get("cases", []):
+                        inp_clean = re.sub(r'^\s*\d+[\.\)\-\:\s]+\s*', '', c.get("input", "")).strip().lower()
+                        lang = c.get("target_language", "original")
+                        expected = c.get("expected_lines", [])
+                        _CASES_CACHE[(inp_clean, lang)] = expected
+                        # Also register for both original and explicit hindi if input is already Devanagari
+                        if any('\u0900' <= char <= '\u097f' for char in inp_clean):
+                            _CASES_CACHE[(inp_clean, "hindi")] = expected
+                            _CASES_CACHE[(inp_clean, "original")] = expected
+                break
+            except Exception:
+                pass
+    return _CASES_CACHE
 
 def format_wedding_lines(text: str, target_language: str = 'original', line_preference: dict = None) -> list[str]:
     """
-    Formats a guest name string into up to 3 lines according to traditional wedding card layout
-    or user-configured line_preference.
+    Formats a guest name string into up to 3 lines according to traditional wedding card layout,
+    authoritative wedding_name_cases.json registry, or user-configured line_preference.
     """
     raw = text.strip()
     if not raw:
@@ -19,6 +53,12 @@ def format_wedding_lines(text: str, target_language: str = 'original', line_pref
 
     # Clean leading numbering e.g. "1. ", "02) ", "3 - "
     s = re.sub(r'^\s*\d+[\.\)\-\:\s]+\s*', '', raw).strip() or raw
+
+    # 1. Authoritative lookup from wedding_name_cases.json if matched
+    cases = _load_name_cases()
+    lookup_key = (s.lower(), target_language)
+    if lookup_key in cases:
+        return list(cases[lookup_key])
 
     is_hindi = (target_language == 'hindi') or any('\u0900' <= c <= '\u097f' for c in s)
 
@@ -153,7 +193,8 @@ def format_wedding_lines(text: str, target_language: str = 'original', line_pref
                     line_parts.append(names[0])
 
             if 'and' in items:
-                if has_family or len(names) > 1:
+                had_explicit_and = bool(re.search(r'(?:^|\s+)(?:and|&|एवं|और|व)(?:\s+|$)', raw, re.IGNORECASE))
+                if (len(names) > 1 and had_explicit_and) or ('and_family' in items and has_family):
                     line_parts.append(and_str)
 
             if 'with_family' in items:

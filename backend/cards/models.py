@@ -93,8 +93,8 @@ class GenerationBatch(models.Model):
         ordering = ['-created_at']
         constraints = [
             models.UniqueConstraint(
-                fields=['project', 'batch_number'],
-                name='unique_project_batch_number'
+                fields=['project', 'session_id', 'batch_number'],
+                name='unique_project_session_batch_number'
             )
         ]
 

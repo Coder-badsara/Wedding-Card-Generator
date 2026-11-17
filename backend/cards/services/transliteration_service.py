@@ -34,7 +34,7 @@ def transliterate_word(word: str) -> str:
 
     # Common wedding titles and phrases
     if w_lower in ["with", "w/"]:
-        return "एवं"
+        return ""
     if w_lower in ["family", "fam"]:
         return "सपरिवार"
     if w_lower in ["and", "&"]:
@@ -68,15 +68,16 @@ def transliterate_word(word: str) -> str:
 def transliterate_phrase(phrase: str) -> str:
     """
     Translates/transliterates an English guest name phrase into Hindi,
-    handling idioms like 'with family' -> 'एवं सपरिवार'.
+    handling idioms like 'with family' -> 'सपरिवार'.
     """
     if not phrase or not phrase.strip():
         return phrase
 
     # Pre-process wedding family idioms
     p = phrase
-    p = re.sub(r'\b(with\s+family|&amp;\s+family|&\s+family|and\s+family)\b', 'एवं सपरिवार', p, flags=re.IGNORECASE)
-    p = re.sub(r'\b(with\s+fam|&\s+fam)\b', 'एवं सपरिवार', p, flags=re.IGNORECASE)
+    # "with family" and "and family" -> "सपरिवार" (never inject extra "एवं")
+    p = re.sub(r'\b(?:with\s+family|with\s+fam|w/\s+family|w/\s+fam)\b', 'सपरिवार', p, flags=re.IGNORECASE)
+    p = re.sub(r'\b(?:and\s+family|&\s+family|&amp;\s+family|and\s+fam|&\s+fam)\b', 'सपरिवार', p, flags=re.IGNORECASE)
 
     # Split preserving delimiters (spaces, commas, punctuation)
     tokens = re.split(r'(\s+|,|\.|\&)', p)
@@ -91,9 +92,11 @@ def transliterate_phrase(phrase: str) -> str:
             # Serial number or digits
             result.append(t)
         else:
-            result.append(transliterate_word(t))
+            w = transliterate_word(t)
+            if w:
+                result.append(w)
 
-    return ''.join(result)
+    return ''.join(result).strip()
 
 
 def transliterate_hindi_to_english(text: str) -> str:
