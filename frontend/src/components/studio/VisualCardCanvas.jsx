@@ -425,9 +425,9 @@ export default function VisualCardCanvas({
                           : textAlign === 'right'
                           ? 'justify-end'
                           : 'justify-start'
-                      } px-1.5 overflow-hidden pointer-events-none drop-shadow-sm font-semibold select-none leading-none`}
+                      } px-1.5 pointer-events-none drop-shadow-sm font-semibold select-none leading-none overflow-visible`}
                     >
-                      <span className="truncate">
+                      <span className="whitespace-nowrap">
                         {lineText || (
                           <span className="opacity-40 italic font-sans text-[11px] font-normal tracking-wide">
                             ({theme.title})

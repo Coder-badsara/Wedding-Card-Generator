@@ -78,36 +78,71 @@ def render_guest_card(
             bw = lbox.get('w', box_w)
             bh = lbox.get('h', box_h)
 
-            vis_box_h = bh * page.rect.height
-            by_to_use = by
             if not is_devanagari:
-                # English letters sit on top of the line (baseline resting on printed guide line)
+                # English letters sit on top of the line (baseline resting on printed guide line).
+                # Use standard 0.040 box height (23.4pt) and 0.60*font_size baseline shift matching
+                # the exact alignment approved by user (crop_shift_0.60.png).
+                bh_to_use = 0.040
+                vis_box_h = bh_to_use * page.rect.height
                 shift_pt = font_size * 0.60
                 by_to_use = by - (shift_pt / page.rect.height)
+                line_target_rect, text_rotation = calculate_target_rect(page, bx, by_to_use, bw, bh_to_use)
+                line_adj_rect = fitz.Rect(line_target_rect)
+                line_css = f"""
+                @font-face {{
+                    font-family: 'CardFont';
+                    src: url('{font_filename}');
+                }}
+                body {{
+                    margin: 0;
+                    padding: 0;
+                }}
+                p {{
+                    font-family: 'CardFont';
+                    font-size: {font_size}pt;
+                    color: {font_color_hex};
+                    text-align: {text_align};
+                    height: {vis_box_h:.1f}pt;
+                    line-height: {vis_box_h:.1f}pt;
+                    margin: 0;
+                    padding: 0;
+                }}
+                """
+            else:
+                # Hindi/Devanagari: extend the lower boundary to end just above the next line
+                # so bottom matras (ु, ू, ृ, ़, etc.) have full vertical clearance without clipping.
+                # Anchor line-height to original base height so shirorekha stays aligned with 'श्रीमान्'.
+                if box_key == 'line1':
+                    next_y = line_boxes.get('line2', {}).get('y', by + bh + 0.008)
+                    effective_bh = max(bh, (next_y - 0.001) - by)
+                elif box_key == 'line2':
+                    next_y = line_boxes.get('line3', {}).get('y', by + bh + 0.008)
+                    effective_bh = max(bh, (next_y - 0.001) - by)
+                else:
+                    effective_bh = max(bh, bh * 1.22)
 
-            line_target_rect, text_rotation = calculate_target_rect(page, bx, by_to_use, bw, bh)
-            line_adj_rect = fitz.Rect(line_target_rect)
-
-            line_css = f"""
-            @font-face {{
-                font-family: 'CardFont';
-                src: url('{font_filename}');
-            }}
-            body {{
-                margin: 0;
-                padding: 0;
-            }}
-            p {{
-                font-family: 'CardFont';
-                font-size: {font_size}pt;
-                color: {font_color_hex};
-                text-align: {text_align};
-                height: {vis_box_h:.1f}pt;
-                line-height: {vis_box_h:.1f}pt;
-                margin: 0;
-                padding: 0;
-            }}
-            """
+                line_target_rect, text_rotation = calculate_target_rect(page, bx, by, bw, effective_bh)
+                line_adj_rect = fitz.Rect(line_target_rect)
+                base_line_h = min(23.4, bh * page.rect.height)
+                line_css = f"""
+                @font-face {{
+                    font-family: 'CardFont';
+                    src: url('{font_filename}');
+                }}
+                body {{
+                    margin: 0;
+                    padding: 0;
+                }}
+                p {{
+                    font-family: 'CardFont';
+                    font-size: {font_size}pt;
+                    color: {font_color_hex};
+                    text-align: {text_align};
+                    line-height: {base_line_h:.1f}pt;
+                    margin: 0;
+                    padding: 0;
+                }}
+                """
             line_html = f"<p>{html.escape(line_text)}</p>"
             spare_height, scale = page.insert_htmlbox(
                 line_adj_rect,
@@ -262,36 +297,71 @@ def render_sample_preview(
             bw = lbox.get('w', box_w)
             bh = lbox.get('h', box_h)
 
-            vis_box_h = bh * page.rect.height
-            by_to_use = by
             if not is_devanagari:
-                # English letters sit on top of the line (baseline resting on printed guide line)
+                # English letters sit on top of the line (baseline resting on printed guide line).
+                # Use standard 0.040 box height (23.4pt) and 0.60*font_size baseline shift matching
+                # the exact alignment approved by user (crop_shift_0.60.png).
+                bh_to_use = 0.040
+                vis_box_h = bh_to_use * page.rect.height
                 shift_pt = font_size * 0.60
                 by_to_use = by - (shift_pt / page.rect.height)
+                line_target_rect, text_rotation = calculate_target_rect(page, bx, by_to_use, bw, bh_to_use)
+                line_adj_rect = fitz.Rect(line_target_rect)
+                line_css = f"""
+                @font-face {{
+                    font-family: 'CardFont';
+                    src: url('{font_filename}');
+                }}
+                body {{
+                    margin: 0;
+                    padding: 0;
+                }}
+                p {{
+                    font-family: 'CardFont';
+                    font-size: {font_size}pt;
+                    color: {font_color_hex};
+                    text-align: {text_align};
+                    height: {vis_box_h:.1f}pt;
+                    line-height: {vis_box_h:.1f}pt;
+                    margin: 0;
+                    padding: 0;
+                }}
+                """
+            else:
+                # Hindi/Devanagari: extend the lower boundary to end just above the next line
+                # so bottom matras (ु, ू, ृ, ़, etc.) have full vertical clearance without clipping.
+                # Anchor line-height to original base height so shirorekha stays aligned with 'श्रीमान्'.
+                if box_key == 'line1':
+                    next_y = line_boxes.get('line2', {}).get('y', by + bh + 0.008)
+                    effective_bh = max(bh, (next_y - 0.001) - by)
+                elif box_key == 'line2':
+                    next_y = line_boxes.get('line3', {}).get('y', by + bh + 0.008)
+                    effective_bh = max(bh, (next_y - 0.001) - by)
+                else:
+                    effective_bh = max(bh, bh * 1.22)
 
-            line_target_rect, text_rotation = calculate_target_rect(page, bx, by_to_use, bw, bh)
-            line_adj_rect = fitz.Rect(line_target_rect)
-
-            line_css = f"""
-            @font-face {{
-                font-family: 'CardFont';
-                src: url('{font_filename}');
-            }}
-            body {{
-                margin: 0;
-                padding: 0;
-            }}
-            p {{
-                font-family: 'CardFont';
-                font-size: {font_size}pt;
-                color: {font_color_hex};
-                text-align: {text_align};
-                height: {vis_box_h:.1f}pt;
-                line-height: {vis_box_h:.1f}pt;
-                margin: 0;
-                padding: 0;
-            }}
-            """
+                line_target_rect, text_rotation = calculate_target_rect(page, bx, by, bw, effective_bh)
+                line_adj_rect = fitz.Rect(line_target_rect)
+                base_line_h = min(23.4, bh * page.rect.height)
+                line_css = f"""
+                @font-face {{
+                    font-family: 'CardFont';
+                    src: url('{font_filename}');
+                }}
+                body {{
+                    margin: 0;
+                    padding: 0;
+                }}
+                p {{
+                    font-family: 'CardFont';
+                    font-size: {font_size}pt;
+                    color: {font_color_hex};
+                    text-align: {text_align};
+                    line-height: {base_line_h:.1f}pt;
+                    margin: 0;
+                    padding: 0;
+                }}
+                """
             line_html = f"<p>{html.escape(line_text)}</p>"
             page.insert_htmlbox(
                 line_adj_rect,
