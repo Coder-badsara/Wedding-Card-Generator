@@ -4,8 +4,22 @@ import { getProjects, createProject, deleteProject, formatMediaUrl } from '../ap
 import ConfirmModal from '../components/common/ConfirmModal';
 
 export default function ProjectsDashboard({ onSelectProject }) {
-  const [projects, setProjects] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [projects, setProjects] = useState(() => {
+    try {
+      const cached = localStorage.getItem('wedding_cached_projects_list');
+      return cached ? JSON.parse(cached) : [];
+    } catch {
+      return [];
+    }
+  });
+  const [loading, setLoading] = useState(() => {
+    try {
+      const cached = localStorage.getItem('wedding_cached_projects_list');
+      return !cached || JSON.parse(cached).length === 0;
+    } catch {
+      return true;
+    }
+  });
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState(null);
   const [dragActive, setDragActive] = useState(false);
@@ -18,21 +32,34 @@ export default function ProjectsDashboard({ onSelectProject }) {
     onConfirm: null,
   });
 
-  const fetchProjects = async () => {
-    setLoading(true);
+  const fetchProjects = async (isBackground = false) => {
+    if (!isBackground && projects.length === 0) {
+      setLoading(true);
+    }
     setError(null);
     try {
       const data = await getProjects();
       setProjects(data);
+      try {
+        localStorage.setItem('wedding_cached_projects_list', JSON.stringify(data));
+      } catch (e) {}
     } catch (err) {
-      setError('Unable to connect to the backend server. Verify Django is running on port 8000.');
+      // If we already have projects from browser cache, don't disrupt the user with a blocking error
+      setProjects((current) => {
+        if (!current || current.length === 0) {
+          setError('Connecting to card workspace... Getting things ready.');
+          // Quietly auto-retry after 4s
+          setTimeout(() => fetchProjects(true), 4000);
+        }
+        return current;
+      });
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchProjects();
+    fetchProjects(projects.length > 0);
   }, []);
 
   const handleUploadFile = async (file) => {
@@ -51,7 +78,13 @@ export default function ProjectsDashboard({ onSelectProject }) {
 
     try {
       const newProject = await createProject(formData);
-      setProjects((prev) => [newProject, ...prev]);
+      setProjects((prev) => {
+        const updated = [newProject, ...prev];
+        try {
+          localStorage.setItem('wedding_cached_projects_list', JSON.stringify(updated));
+        } catch (e) {}
+        return updated;
+      });
       // Immediately open workspace!
       onSelectProject(newProject);
     } catch (err) {
@@ -97,7 +130,16 @@ export default function ProjectsDashboard({ onSelectProject }) {
         setConfirmModal((prev) => ({ ...prev, isLoading: true }));
         try {
           await deleteProject(project.id);
-          setProjects((prev) => prev.filter((p) => p.id !== project.id));
+          setProjects((prev) => {
+            const updated = prev.filter((p) => p.id !== project.id);
+            try {
+              localStorage.setItem('wedding_cached_projects_list', JSON.stringify(updated));
+            } catch (e) {}
+            return updated;
+          });
+          try {
+            localStorage.removeItem(`wedding_cached_project_${project.id}`);
+          } catch (e) {}
           setConfirmModal((prev) => ({ ...prev, isOpen: false, isLoading: false }));
         } catch (err) {
           alert('Failed to delete project.');

@@ -34,10 +34,27 @@ import {
 } from '../utils/pdfStorage';
 
 export default function CardStudioPage({ projectId }) {
-  const [project, setProject] = useState(null);
+  const getInitialCachedProject = () => {
+    try {
+      const raw = localStorage.getItem(`wedding_cached_project_${projectId}`);
+      return raw ? JSON.parse(raw) : null;
+    } catch {
+      return null;
+    }
+  };
+  const initialProject = getInitialCachedProject();
+
+  const [project, setProject] = useState(initialProject);
   const [batches, setBatches] = useState([]);
-  const [fonts, setFonts] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [fonts, setFonts] = useState(() => {
+    try {
+      const raw = localStorage.getItem('wedding_cached_fonts');
+      return raw ? JSON.parse(raw) : [];
+    } catch {
+      return [];
+    }
+  });
+  const [loading, setLoading] = useState(!initialProject);
   const [error, setError] = useState(null);
 
   // Custom Confirmation Modal State
@@ -54,20 +71,32 @@ export default function CardStudioPage({ projectId }) {
   // Active Tab: 'generate' or 'editor'
   const [activeTab, setActiveTab] = useState('generate');
 
-  // Studio Settings State
-  const [boxCoords, setBoxCoords] = useState({ x: 0.58, y: 0.55, w: 0.32, h: 0.15 });
-  const [fontFamily, setFontFamily] = useState('NotoSansDevanagari-Regular');
-  const [fontSize, setFontSize] = useState(20);
-  const [minFontSize, setMinFontSize] = useState(12);
-  const [fontColor, setFontColor] = useState('#800020');
-  const [textAlign, setTextAlign] = useState('center');
-  const [prefixText, setPrefixText] = useState('');
+  // Studio Settings State initialized from initialProject if available
+  const [boxCoords, setBoxCoords] = useState(() => ({
+    x: initialProject?.box_x ?? 0.58,
+    y: initialProject?.box_y ?? 0.55,
+    w: initialProject?.box_width ?? 0.32,
+    h: initialProject?.box_height ?? 0.15,
+  }));
+  const [fontFamily, setFontFamily] = useState(
+    initialProject?.font_family || 'NotoSansDevanagari-Regular'
+  );
+  const [fontSize, setFontSize] = useState(initialProject?.font_size || 20);
+  const [minFontSize, setMinFontSize] = useState(initialProject?.min_font_size || 12);
+  const [fontColor, setFontColor] = useState(initialProject?.font_color || '#800020');
+  const [textAlign, setTextAlign] = useState(initialProject?.text_align || 'center');
+  const [prefixText, setPrefixText] = useState(initialProject?.prefix_text || '');
   const [sampleText, setSampleText] = useState('अमित शर्मा सपरिवार');
-  const [linePreference, setLinePreference] = useState({});
-  const [lineBoxes, setLineBoxes] = useState({
-    line1: { x: 0.58, y: 0.52, w: 0.35, h: 0.045 },
-    line2: { x: 0.58, y: 0.575, w: 0.35, h: 0.045 },
-    line3: { x: 0.58, y: 0.63, w: 0.35, h: 0.045 },
+  const [linePreference, setLinePreference] = useState(initialProject?.line_preference || {});
+  const [lineBoxes, setLineBoxes] = useState(() => {
+    if (initialProject?.line_boxes && Object.keys(initialProject.line_boxes).length > 0) {
+      return initialProject.line_boxes;
+    }
+    return {
+      line1: { x: 0.58, y: 0.52, w: 0.35, h: 0.045 },
+      line2: { x: 0.58, y: 0.575, w: 0.35, h: 0.045 },
+      line3: { x: 0.58, y: 0.63, w: 0.35, h: 0.045 },
+    };
   });
   const [activeLine, setActiveLine] = useState('line1');
 
@@ -79,13 +108,67 @@ export default function CardStudioPage({ projectId }) {
   // Generate Tab State
   const [targetBatchId, setTargetBatchId] = useState('new'); // 'new' or UUID of existing batch
   const [batchLabel, setBatchLabel] = useState('');
-  const [targetLanguage, setTargetLanguage] = useState('hindi');
+  const [targetLanguage, setTargetLanguage] = useState(() => {
+    const f = initialProject?.font_family || '';
+    const isDev =
+      f.toLowerCase().includes('devanagari') ||
+      ['gargi', 'eczar', 'aparajita', 'akshar', 'arya'].some((k) => f.toLowerCase().includes(k));
+    return isDev ? 'hindi' : 'original';
+  });
   const [transliterating, setTransliterating] = useState(false);
   const [rawGuestNames, setRawGuestNames] = useState('1. ');
   const textareaRef = useRef(null);
   const [generating, setGenerating] = useState(false);
+  const [simulatedProgress, setSimulatedProgress] = useState(0);
+  const [simulatedStage, setSimulatedStage] = useState('');
+  const progressTimerRef = useRef(null);
   const [activeBatch, setActiveBatch] = useState(null);
   const [isPolling, setIsPolling] = useState(false);
+
+  const startSimulatedProgress = () => {
+    if (progressTimerRef.current) clearInterval(progressTimerRef.current);
+    setSimulatedProgress(8);
+    setSimulatedStage('Preparing card layouts...');
+
+    let current = 8;
+    progressTimerRef.current = setInterval(() => {
+      if (current < 25) {
+        current += Math.floor(Math.random() * 4) + 3; // +3 to +6%
+        setSimulatedStage('Preparing individual card layouts...');
+      } else if (current < 55) {
+        current += Math.floor(Math.random() * 3) + 2; // +2 to +4%
+        setSimulatedStage('Rendering high-resolution typography...');
+      } else if (current < 80) {
+        current += Math.floor(Math.random() * 2) + 1; // +1 to +2%
+        setSimulatedStage('Formatting guest lines & positions...');
+      } else if (current < 94) {
+        current += 1;
+        setSimulatedStage('Finalizing card batch...');
+      }
+      if (current > 94) current = 94;
+      setSimulatedProgress(current);
+    }, 700);
+  };
+
+  const stopSimulatedProgress = (isSuccess = true) => {
+    if (progressTimerRef.current) {
+      clearInterval(progressTimerRef.current);
+      progressTimerRef.current = null;
+    }
+    if (isSuccess) {
+      setSimulatedProgress(100);
+      setSimulatedStage('Cards Generated Successfully!');
+    } else {
+      setSimulatedProgress(0);
+      setSimulatedStage('');
+    }
+  };
+
+  useEffect(() => {
+    return () => {
+      if (progressTimerRef.current) clearInterval(progressTimerRef.current);
+    };
+  }, []);
 
   const fetchProjectData = useCallback(async () => {
     // 1. Immediately load any existing batches from IndexedDB cache
@@ -109,6 +192,11 @@ export default function CardStudioPage({ projectId }) {
 
       setProject(projData);
       setFonts(fontsData);
+
+      try {
+        localStorage.setItem(`wedding_cached_project_${projectId}`, JSON.stringify(projData));
+        localStorage.setItem('wedding_cached_fonts', JSON.stringify(fontsData));
+      } catch (e) {}
 
       // Merge server batches with cached batches
       const serverIds = new Set((batchesData || []).map((b) => b.id));
@@ -175,7 +263,13 @@ export default function CardStudioPage({ projectId }) {
         }
       }
     } catch (err) {
-      setError('Failed to load project details.');
+      setProject((current) => {
+        if (!current) {
+          setError('Connecting to card workspace... Getting things ready.');
+          setTimeout(fetchProjectData, 4000);
+        }
+        return current;
+      });
     } finally {
       setLoading(false);
     }
@@ -539,6 +633,9 @@ export default function CardStudioPage({ projectId }) {
         target_language: targetLanguage,
       });
       setProject(updated);
+      try {
+        localStorage.setItem(`wedding_cached_project_${projectId}`, JSON.stringify(updated));
+      } catch (e) {}
     } catch (err) {
       alert('Failed to save settings.');
     } finally {
@@ -601,6 +698,8 @@ export default function CardStudioPage({ projectId }) {
     if (guestCount === 0) return;
 
     setGenerating(true);
+    startSimulatedProgress();
+
     try {
       const cleanedNames = cleanGuestNames(rawGuestNames);
       const payload = {
@@ -612,6 +711,9 @@ export default function CardStudioPage({ projectId }) {
       };
 
       const responseBatch = await createBatch(projectId, payload);
+
+      stopSimulatedProgress(true);
+      await new Promise((res) => setTimeout(res, 350));
 
       setActiveBatch(responseBatch);
       saveBatchToStorage(responseBatch);
@@ -625,7 +727,8 @@ export default function CardStudioPage({ projectId }) {
         saveBatchToStorage(b);
       }
     } catch (err) {
-      alert(err.response?.data?.error || err.response?.data?.batch_id || 'Failed to start generation.');
+      stopSimulatedProgress(false);
+      alert(err.response?.data?.error || err.response?.data?.batch_id || 'Failed to generate cards. Please try again.');
     } finally {
       setGenerating(false);
     }
@@ -705,7 +808,7 @@ export default function CardStudioPage({ projectId }) {
     });
   };
 
-  if (loading) {
+  if (loading && !project) {
     return (
       <div className="py-32 flex flex-col items-center justify-center text-slate-400">
         <Loader2 className="w-8 h-8 text-rose-800 animate-spin mb-3" />
@@ -714,12 +817,17 @@ export default function CardStudioPage({ projectId }) {
     );
   }
 
-  if (error || !project) {
+  if ((error || !project) && !project) {
     return (
-      <div className="max-w-4xl mx-auto py-12 px-4">
-        <div className="bg-red-50 border border-red-200 text-red-800 p-6 rounded-2xl flex items-center gap-3">
-          <AlertCircle className="w-6 h-6 text-red-600 shrink-0" />
-          <p className="text-sm font-semibold">{error || 'Project not found.'}</p>
+      <div className="max-w-md mx-auto py-32 px-4 text-center space-y-4">
+        <div className="w-12 h-12 rounded-2xl bg-rose-50 text-rose-800 flex items-center justify-center mx-auto border border-rose-200/60 shadow-sm">
+          <Loader2 className="w-6 h-6 animate-spin text-rose-800" />
+        </div>
+        <div className="space-y-1">
+          <h3 className="text-base font-bold text-slate-800">Connecting to Card Workspace...</h3>
+          <p className="text-xs text-slate-500">
+            Getting your card studio ready. This usually takes just a few seconds.
+          </p>
         </div>
       </div>
     );
@@ -975,7 +1083,9 @@ export default function CardStudioPage({ projectId }) {
                 {generating || isPolling ? (
                   <>
                     <Loader2 className="w-4 h-4 animate-spin text-amber-300" />
-                    <span>Processing {guestCount} Cards...</span>
+                    <span>
+                      Generating Cards ({generating ? `${simulatedProgress}%` : `${Math.round(((activeBatch?.processed_guests || 0) / (activeBatch?.total_guests || 1)) * 100)}%`})...
+                    </span>
                   </>
                 ) : targetBatchId !== 'new' ? (
                   <>
@@ -999,6 +1109,38 @@ export default function CardStudioPage({ projectId }) {
 
           {/* Right Column: Generation Status & Download Results (7 cols) */}
           <div className="lg:col-span-7 space-y-6">
+            {/* Immediate Progress Indicator when starting a generation */}
+            {generating && !activeBatch && (
+              <div className="bg-white rounded-3xl border border-slate-200/90 p-6 shadow-sm space-y-4">
+                <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-bold px-2 py-0.5 rounded-md bg-amber-100 text-amber-900 font-mono">
+                      Generating
+                    </span>
+                    <h4 className="text-base font-bold text-slate-900 font-serif">
+                      New Batch
+                    </h4>
+                  </div>
+                </div>
+
+                <div className="bg-amber-50/70 border border-amber-200/90 rounded-2xl p-4 space-y-2.5 shadow-sm">
+                  <div className="flex justify-between items-center text-xs font-bold text-amber-950">
+                    <span className="flex items-center gap-1.5">
+                      <Loader2 className="w-3.5 h-3.5 animate-spin text-amber-700" />
+                      {simulatedStage || 'Generating individual PDFs...'}
+                    </span>
+                    <span className="font-mono text-amber-800">{simulatedProgress}%</span>
+                  </div>
+                  <div className="w-full h-3 bg-amber-200/60 rounded-full overflow-hidden shadow-inner">
+                    <div
+                      style={{ width: `${simulatedProgress}%` }}
+                      className="h-full bg-gradient-to-r from-amber-500 via-rose-700 to-rose-950 rounded-full transition-all duration-300"
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
+
             {activeBatch ? (
               <div className="bg-white rounded-3xl border border-slate-200/90 p-6 shadow-sm space-y-6">
                 <div className="flex flex-wrap items-center justify-between gap-3 pb-4 border-b border-slate-100">
@@ -1048,19 +1190,30 @@ export default function CardStudioPage({ projectId }) {
                   </div>
                 </div>
 
-                {/* Progress Bar (while processing) */}
-                {(activeBatch.status === 'PROCESSING' || activeBatch.status === 'PENDING') && (
-                  <div className="bg-amber-50/60 border border-amber-200/80 rounded-2xl p-4 space-y-2">
-                    <div className="flex justify-between text-xs font-bold text-amber-900">
-                      <span>Generating individual PDFs...</span>
-                      <span>{Math.round(((activeBatch.processed_guests || 0) / (activeBatch.total_guests || 1)) * 100)}%</span>
+                {/* Progress Bar (while processing or generating) */}
+                {(generating || activeBatch.status === 'PROCESSING' || activeBatch.status === 'PENDING') && (
+                  <div className="bg-amber-50/70 border border-amber-200/90 rounded-2xl p-4 space-y-2.5 shadow-sm">
+                    <div className="flex justify-between items-center text-xs font-bold text-amber-950">
+                      <span className="flex items-center gap-1.5">
+                        <Loader2 className="w-3.5 h-3.5 animate-spin text-amber-700" />
+                        {generating ? (simulatedStage || 'Generating individual PDFs...') : 'Generating individual PDFs...'}
+                      </span>
+                      <span className="font-mono text-amber-800">
+                        {generating
+                          ? `${simulatedProgress}%`
+                          : `${Math.round(((activeBatch.processed_guests || 0) / (activeBatch.total_guests || 1)) * 100)}%`}
+                      </span>
                     </div>
-                    <div className="w-full h-3 bg-amber-200/60 rounded-full overflow-hidden">
+                    <div className="w-full h-3 bg-amber-200/60 rounded-full overflow-hidden shadow-inner">
                       <div
                         style={{
-                          width: `${Math.round(((activeBatch.processed_guests || 0) / (activeBatch.total_guests || 1)) * 100)}%`,
+                          width: `${
+                            generating
+                              ? simulatedProgress
+                              : Math.round(((activeBatch.processed_guests || 0) / (activeBatch.total_guests || 1)) * 100)
+                          }%`,
                         }}
-                        className="h-full bg-gradient-to-r from-amber-500 to-rose-800 rounded-full transition-all duration-300"
+                        className="h-full bg-gradient-to-r from-amber-500 via-rose-700 to-rose-950 rounded-full transition-all duration-300"
                       />
                     </div>
                   </div>

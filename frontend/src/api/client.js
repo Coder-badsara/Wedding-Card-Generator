@@ -19,7 +19,7 @@ export const getClientSessionId = () => {
 
 const client = axios.create({
   baseURL: `${API_BASE_URL}/api`,
-  timeout: 30000,
+  timeout: 120000, // 120s timeout so Render cold starts have sufficient time
 });
 
 client.interceptors.request.use((config) => {
@@ -29,5 +29,40 @@ client.interceptors.request.use((config) => {
   }
   return config;
 });
+
+// Automatic silent retry for cold start transient errors (502, 503, 504, timeout, network error)
+client.interceptors.response.use(
+  (response) => response,
+  async (error) => {
+    const config = error.config;
+    if (!config || config._noRetry) {
+      return Promise.reject(error);
+    }
+
+    config._retryCount = config._retryCount || 0;
+    const maxRetries = config.maxRetries !== undefined ? config.maxRetries : 2;
+
+    const isColdStartStatus =
+      !error.response ||
+      error.code === 'ECONNABORTED' ||
+      [502, 503, 504].includes(error.response?.status);
+
+    if (isColdStartStatus && config._retryCount < maxRetries) {
+      config._retryCount += 1;
+      const delayMs = config._retryCount * 2500;
+      await new Promise((res) => setTimeout(res, delayMs));
+      return client(config);
+    }
+
+    return Promise.reject(error);
+  }
+);
+
+// Silent background wake-up ping
+export const triggerWakeupPing = () => {
+  if (typeof window === 'undefined') return;
+  // Fire and forget, ignore any errors
+  client.get('/projects/', { _noRetry: true, timeout: 60000 }).catch(() => {});
+};
 
 export default client;

@@ -2,9 +2,15 @@ import React, { useState, useEffect } from 'react';
 import Navbar from './components/common/Navbar';
 import ProjectsDashboard from './pages/ProjectsDashboard';
 import CardStudioPage from './pages/CardStudioPage';
+import { triggerWakeupPing } from './api/client';
 
 export default function App() {
   const [selectedProject, setSelectedProject] = useState(null);
+
+  // Silently wake up backend server on initial app mount
+  useEffect(() => {
+    triggerWakeupPing();
+  }, []);
 
   // Sync with URL hash for easy bookmarking and refreshing
   useEffect(() => {
